@@ -1,3 +1,5 @@
+import java.util.concurrent.TimeoutException;
+
 class Buffer1SyncObj<T> {
 
     boolean empty;
@@ -46,22 +48,51 @@ class Buffer1SyncObj<T> {
     }
 
     public boolean tryPut(T content){
-        if(empty){
-            this.content = content;
-            empty = false;
-            return true;
+        synchronized (w){
+            if(!empty){
+                 return false;
+            }
+
+            synchronized (r){
+                this.content = content;
+                empty = false;
+                r.notify();
+                return true;
+            }
         }
-        return false;
     }
 
-    public void override(T content){
-        this.content = content;
+    public void overwrite(T content){
+       synchronized (w){
+           this.content = content;
+       }
+       if (empty) {
+           synchronized (r) {
+               this.empty = false;
+               r.notify();
+           }
+       }
     }
 
-    public T take(long timeOut) throws InterruptedException {
+    public T read() throws InterruptedException{
         synchronized (r) {
             while (empty) {
-                r.wait(timeOut);
+                r.wait();
+            }
+            synchronized (w) {
+                r.notify();
+                return content;
+            }
+        }
+    }
+
+    public T take(long timeOut) throws InterruptedException, TimeoutException {
+        synchronized (r) {
+            if (empty){
+                r.wait();
+            }
+            if(empty){
+                throw new TimeoutException("timeout");
             }
             synchronized (w) {
                 empty = true;
@@ -72,13 +103,4 @@ class Buffer1SyncObj<T> {
             }
         }
     }
-
-
 }
-
-
-
-
-
-
-

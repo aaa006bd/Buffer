@@ -49,7 +49,7 @@ public class BufferN<T> {
     }
 
     public synchronized boolean isEmpty(){
-        return size >=0;
+        return size == 0;
     }
 
     public void print(){
